@@ -1,0 +1,76 @@
+- hosts: bforce
+  gather_facts: false
+  #become: yes 
+  #become_user: root
+  #become_method: sudo
+  tasks:
+    - name: Создать директорию data
+      file:
+        path: /home/user/data
+        state: directory
+        mode: '0755' 
+    - name: Создать директорию instance
+      file:
+        path: /home/user/data/instance
+        state: directory
+        mode: '0755' 
+    - name: Создать директорию HWEB
+      file:
+        path: /home/user/HWEB
+        state: directory
+        mode: '0755' 
+    - name: Создать директорию wordlists
+      file:
+        path: /home/user/HWEB/wordlists
+        state: directory
+        mode: '0755'
+    - name: Создать директорию masks
+      file:
+        path: /home/user/HWEB/masks
+        state: directory
+        mode: '0755'
+    - name: Создать директорию rules
+      file:
+        path: /home/user/HWEB/rules
+        state: directory
+        mode: '0755'
+    - name: Создать директорию hashfiles
+      file:
+        path: /home/user/HWEB/hashfiles
+        state: directory
+        mode: '0755'
+    - name: Копировать crackerjack.sqlite3
+      ansible.builtin.copy:
+        src: ./templates/crackerjack.sqlite3
+        dest: /home/user/data/instance/crackerjack.sqlite3
+    - name: Копировать envlist.txt
+      ansible.builtin.copy:
+        src: ./templates/envlist.txt
+        dest: /home/user/envlist.txt
+    - name: Создать Docker-сеть
+      command: docker network create crackerjack_net
+      ignore_errors: true 
+      become: true
+    - name: Запустить контейнер crackerjack
+      command: >
+        docker run -d
+        --name crackerjack
+        --network crackerjack_net
+        -v /home/user/HWEB:/root/HWEB 
+        -v /home/user/data:/root/crackerjack/data/
+        -p 127.0.0.1:8080:5000
+        dxrvs/crack:1.0
+      register: crackerjack_container
+      become: true       
+      ignore_errors: true 
+    - name: Запустить контейнер hashbot
+      command: >
+        docker run -d
+        --name hashbot
+        --network crackerjack_net
+        --env-file /home/user/envlist.txt
+        --restart=always
+        dxrvs/hashbot:1.0
+      become: true  
+      ignore_errors: true 
+      register: hashbot_container
